@@ -1,5 +1,5 @@
 ## Issue asociado
-Closes #
+Closes #1
 
 ## Qué se implementó
 - 
