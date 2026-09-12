@@ -5,9 +5,6 @@ on:
   push:
     branches: [main, stg, prod]
 
-permissions:
-  contents: read
-
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -37,4 +34,4 @@ jobs:
       - run: corepack enable
       - run: yarn install --frozen-lockfile
       - run: yarn build
-      - run: yarn vitest run --passWithNoTests
+      - run: yarn test --watch=false --browsers ChromeHeadless
