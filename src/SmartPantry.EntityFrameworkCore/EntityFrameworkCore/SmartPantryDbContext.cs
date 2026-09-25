@@ -14,6 +14,7 @@ using Volo.Abp.SettingManagement.EntityFrameworkCore;
 using Volo.Abp.OpenIddict.EntityFrameworkCore;
 using Volo.Abp.TenantManagement;
 using Volo.Abp.TenantManagement.EntityFrameworkCore;
+using SmartPantry.Products; //Se agrega para que el DbContext pueda reconocer la entidad Product
 
 namespace SmartPantry.EntityFrameworkCore;
 
@@ -50,6 +51,7 @@ public class SmartPantryDbContext :
     public DbSet<IdentityLinkUser> LinkUsers { get; set; }
     public DbSet<IdentityUserDelegation> UserDelegations { get; set; }
     public DbSet<IdentitySession> Sessions { get; set; }
+    public DbSet<Product> Products { get; set; } //Se agrega el DbSet para la entidad Product, se agrega la tabla Products en la base de datos
 
     // Tenant Management
     public DbSet<Tenant> Tenants { get; set; }
@@ -79,13 +81,12 @@ public class SmartPantryDbContext :
         builder.ConfigureTenantManagement();
         builder.ConfigureBlobStoring();
 
-        /* Configure your own tables/entities inside here */
-
-        //builder.Entity<YourEntity>(b =>
-        //{
-        //    b.ToTable(SmartPantryConsts.DbTablePrefix + "YourEntities", SmartPantryConsts.DbSchema);
-        //    b.ConfigureByConvention(); //auto configure for the base class props
-        //    //...
-        //});
+        builder.Entity<Product>(b =>
+        {
+            b.ToTable("AppProducts");
+            b.ConfigureByConvention();
+            b.Property(x => x.Name).IsRequired().HasMaxLength(ProductConsts.MaxNameLength);
+            b.Property(x => x.Brand).IsRequired().HasMaxLength(ProductConsts.MaxBrandLength);
+        });
     }
 }

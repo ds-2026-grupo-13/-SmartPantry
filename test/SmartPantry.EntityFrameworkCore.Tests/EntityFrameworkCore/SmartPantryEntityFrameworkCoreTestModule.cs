@@ -6,12 +6,14 @@ using Volo.Abp.EntityFrameworkCore;
 using Volo.Abp.EntityFrameworkCore.Sqlite;
 using Volo.Abp.FeatureManagement;
 using Volo.Abp.Modularity;
+using Volo.Abp.OpenIddict.EntityFrameworkCore;
 using Volo.Abp.PermissionManagement;
 using Volo.Abp.Uow;
 
 namespace SmartPantry.EntityFrameworkCore;
 
 [DependsOn(
+    typeof(AbpOpenIddictEntityFrameworkCoreModule),
     typeof(SmartPantryApplicationTestModule),
     typeof(SmartPantryEntityFrameworkCoreModule),
     typeof(AbpEntityFrameworkCoreSqliteModule)
