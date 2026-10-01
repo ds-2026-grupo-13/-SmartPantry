@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Shouldly;
-using Volo.Abp.Validation;
+using Volo.Abp.Application.Dtos;
+using Volo.Abp.Domain.Entities;
 using Xunit;
 
 namespace SmartPantry.Products;
@@ -54,6 +55,46 @@ public class ProductAppService_Tests : SmartPantryApplicationTestBase<SmartPantr
         await Assert.ThrowsAsync<ArgumentException>(async () =>
         {
             await _productAppService.CreateAsync(input);
+        });
+    }
+
+    [Fact]
+    public async Task Should_Execute_Full_Crud_Lifecycle()
+    {
+        // 1. Create (Registrar)
+        var created = await _productAppService.CreateAsync(new CreateProductDto
+        {
+            Name = "Aceite de Girasol",
+            Brand = "Natura"
+        });
+        created.ShouldNotBeNull();
+        var id = created.Id;
+
+        // 2. GetList (Listar paginado)
+        var list = await _productAppService.GetListAsync(new PagedAndSortedResultRequestDto());
+        list.TotalCount.ShouldBeGreaterThan(0);
+        list.Items.ShouldContain(p => p.Id == id);
+
+        // 3. Update (Modificar)
+        var updated = await _productAppService.UpdateAsync(id, new UpdateProductDto
+        {
+            Name = "Aceite de Oliva",
+            Brand = "Cocinero"
+        });
+        updated.Name.ShouldBe("Aceite de Oliva");
+        updated.Brand.ShouldBe("Cocinero");
+
+        // 4. Get (Consultar)
+        var retrieved = await _productAppService.GetAsync(id);
+        retrieved.Name.ShouldBe("Aceite de Oliva");
+
+        // 5. Delete (Eliminar)
+        await _productAppService.DeleteAsync(id);
+
+        // 6. Comprobar que consultar el Id eliminado arroja excepción de entidad no encontrada
+        await Assert.ThrowsAsync<EntityNotFoundException>(async () =>
+        {
+            await _productAppService.GetAsync(id);
         });
     }
 }

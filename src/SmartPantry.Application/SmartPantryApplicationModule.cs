@@ -13,6 +13,9 @@ namespace SmartPantry;
 [DependsOn(
     typeof(SmartPantryDomainModule),
     typeof(SmartPantryApplicationContractsModule),
+    // Registrar el módulo de Mapperly para que los mapeos parciales marcados con [Mapper]
+    // sean generados y registrados automáticamente por ABP.
+    typeof(AbpMapperlyModule),
     typeof(AbpPermissionManagementApplicationModule),
     typeof(AbpFeatureManagementApplicationModule),
     typeof(AbpIdentityApplicationModule),
