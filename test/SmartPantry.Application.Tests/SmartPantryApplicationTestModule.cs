@@ -35,7 +35,23 @@ public class SmartPantryApplicationTestModule : AbpModule
                 saved = ci.ArgAt<Product>(0);
                 return Task.FromResult(saved!);
             });
-        productRepo.GetAsync(Arg.Any<Guid>()).Returns(ci => Task.FromResult(saved!));
+        productRepo.GetAsync(Arg.Any<Guid>()).Returns(ci =>
+        {
+            var id = ci.ArgAt<Guid>(0);
+            if (saved == null)
+            {
+                throw new Volo.Abp.Domain.Entities.EntityNotFoundException(typeof(Product), id);
+            }
+            return Task.FromResult(saved!);
+        });
+        productRepo.DeleteAsync(Arg.Any<Guid>())
+            .Returns(ci =>
+            {
+                saved = null;
+                return Task.CompletedTask;
+            });
+        // NOTA: no es necesario mockear GetListAsync/GetCountAsync aquí porque
+        // ProductAppService implementa su propio GetListAsync que usa el almacén en memoria.
         context.Services.AddSingleton<Volo.Abp.Domain.Repositories.IRepository<Product, Guid>>(productRepo);
         // Mocks para evitar dependencias de AuditLogging durante las pruebas
         context.Services.AddSingleton(Substitute.For<Volo.Abp.AuditLogging.IAuditLogRepository>());
