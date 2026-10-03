@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Volo.Abp;
 using Volo.Abp.Domain.Entities;
 
@@ -8,15 +8,17 @@ public class Product : AggregateRoot<Guid>
 {
     public string Name { get; private set; }
     public string Brand { get; private set; }
+    public string Barcode { get; private set; }
 
     // Constructor vacío requerido internamente por Entity Framework Core
     private Product() { }
 
     // Constructor principal que se usa para crear un producto nuevo
-    public Product(Guid id, string name, string brand) : base(id)
+    public Product(Guid id, string name, string brand, string barcode) : base(id)
     {
         SetName(name);
         SetBrand(brand);
+        SetBarcode(barcode);
     }
 
     public void SetName(string name)
@@ -30,5 +32,11 @@ public class Product : AggregateRoot<Guid>
     {
         Check.NotNullOrWhiteSpace(brand, nameof(brand), maxLength: ProductConsts.MaxBrandLength);
         Brand = brand.Trim();
+    }
+
+    public void SetBarcode(string barcode)
+    {
+        Check.NotNullOrWhiteSpace(barcode, nameof(barcode), maxLength: ProductConsts.MaxBarcodeLength);
+        Barcode = barcode.Trim();
     }
 }
