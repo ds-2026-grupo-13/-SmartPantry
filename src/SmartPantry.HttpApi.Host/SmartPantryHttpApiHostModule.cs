@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Extensions.DependencyInjection;
 using OpenIddict.Validation.AspNetCore;
 using OpenIddict.Server.AspNetCore;
 using SmartPantry.EntityFrameworkCore;
+using SmartPantry.ExternalProducts;
 using SmartPantry.MultiTenancy;
 using SmartPantry.HealthChecks;
 using Microsoft.OpenApi;
@@ -127,6 +128,22 @@ public class SmartPantryHttpApiHostModule : AbpModule
         ConfigureSwagger(context, configuration);
         ConfigureVirtualFileSystem(context);
         ConfigureCors(context, configuration);
+        ConfigureExternalProductCatalog(context);
+    }
+
+    private static void ConfigureExternalProductCatalog(ServiceConfigurationContext context)
+    {
+        // IHttpClientFactory administra el ciclo de vida de las conexiones HTTP y entrega un HttpClient
+        // ya configurado al constructor de OpenFoodFactsProductCatalogClient.
+        context.Services.AddHttpClient<IExternalProductCatalogClient, OpenFoodFactsProductCatalogClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://world.openfoodfacts.org/api/v3/");
+            client.Timeout = TimeSpan.FromSeconds(10);
+            // Open Food Facts exige identificar al cliente: aplicación, versión y forma de contacto.
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("SmartPantry/1.0");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("(+https://github.com/ds-2026-grupo-13/-SmartPantry)");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+        });
     }
 
     private void ConfigureStudio(IHostEnvironment hostingEnvironment)
