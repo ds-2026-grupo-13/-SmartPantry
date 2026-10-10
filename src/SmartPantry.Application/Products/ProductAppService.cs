@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using Volo.Abp.Application.Dtos;
 using System.Linq;
@@ -36,7 +36,8 @@ public class ProductAppService :
         var product = new Product(
             GuidGenerator.Create(),
             input.Name,
-            input.Brand
+            input.Brand,
+            input.Barcode
         );
 
         await _productRepository.InsertAsync(product);
@@ -56,6 +57,7 @@ public class ProductAppService :
         // llamalos acá. Si expusiste un método ChangeName/Update:
         product.SetName(input.Name);
         product.SetBrand(input.Brand);
+        product.SetBarcode(input.Barcode);
 
         await _productRepository.UpdateAsync(product);
 
@@ -74,7 +76,7 @@ public class ProductAppService :
         var items = all
             .Skip(input.SkipCount)
             .Take(input.MaxResultCount)
-            .Select(p => new ProductDto { Id = p.Id, Name = p.Name, Brand = p.Brand })
+            .Select(p => new ProductDto { Id = p.Id, Name = p.Name, Brand = p.Brand, Barcode = p.Barcode })
             .ToList();
 
         return new PagedResultDto<ProductDto>(total, items);

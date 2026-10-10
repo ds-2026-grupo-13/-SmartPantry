@@ -87,6 +87,7 @@ public class SmartPantryDbContext :
             b.ConfigureByConvention();
             b.Property(x => x.Name).IsRequired().HasMaxLength(ProductConsts.MaxNameLength);
             b.Property(x => x.Brand).IsRequired().HasMaxLength(ProductConsts.MaxBrandLength);
+            b.Property(x => x.Barcode).IsRequired().HasMaxLength(ProductConsts.MaxBarcodeLength);
         });
     }
 }

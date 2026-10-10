@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using Shouldly;
 using Volo.Abp.Application.Dtos;
@@ -23,7 +23,8 @@ public class ProductAppService_Tests : SmartPantryApplicationTestBase<SmartPantr
         var input = new CreateProductDto
         {
             Name = "Fideos Tallarines",
-            Brand = "Matarazzo"
+            Brand = "Matarazzo",
+            Barcode = "7790005551234"
         };
 
         // Act
@@ -33,6 +34,7 @@ public class ProductAppService_Tests : SmartPantryApplicationTestBase<SmartPantr
         created.ShouldNotBeNull();
         created.Id.ShouldNotBe(Guid.Empty);
         created.Name.ShouldBe("Fideos Tallarines");
+        created.Barcode.ShouldBe("7790005551234");
 
         // Act
         var retrieved = await _productAppService.GetAsync(created.Id);
@@ -49,7 +51,8 @@ public class ProductAppService_Tests : SmartPantryApplicationTestBase<SmartPantr
         var input = new CreateProductDto
         {
             Name = string.Empty,
-            Brand = "Marca"
+            Brand = "Marca",
+            Barcode = "7790001234567"
         };
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -65,7 +68,8 @@ public class ProductAppService_Tests : SmartPantryApplicationTestBase<SmartPantr
         var created = await _productAppService.CreateAsync(new CreateProductDto
         {
             Name = "Aceite de Girasol",
-            Brand = "Natura"
+            Brand = "Natura",
+            Barcode = "7790009998887"
         });
         created.ShouldNotBeNull();
         var id = created.Id;
@@ -79,10 +83,12 @@ public class ProductAppService_Tests : SmartPantryApplicationTestBase<SmartPantr
         var updated = await _productAppService.UpdateAsync(id, new UpdateProductDto
         {
             Name = "Aceite de Oliva",
-            Brand = "Cocinero"
+            Brand = "Cocinero",
+            Barcode = "7790001112223"
         });
         updated.Name.ShouldBe("Aceite de Oliva");
         updated.Brand.ShouldBe("Cocinero");
+        updated.Barcode.ShouldBe("7790001112223");
 
         // 4. Get (Consultar)
         var retrieved = await _productAppService.GetAsync(id);

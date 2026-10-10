@@ -3,7 +3,7 @@ using Volo.Abp.Mapperly;
 
 namespace SmartPantry;
 
-// Implementación manual de mapeos requerida por ABP.
+// ImplementaciÃ³n manual de mapeos requerida por ABP.
 public class SmartPantryApplicationMappers : MapperBase<Product, ProductDto>
 {
     public override ProductDto Map(Product source)
@@ -13,7 +13,8 @@ public class SmartPantryApplicationMappers : MapperBase<Product, ProductDto>
         {
             Id = source.Id,
             Name = source.Name,
-            Brand = source.Brand
+            Brand = source.Brand,
+            Barcode = source.Barcode
         };
     }
 
@@ -23,6 +24,7 @@ public class SmartPantryApplicationMappers : MapperBase<Product, ProductDto>
         destination.Id = source.Id;
         destination.Name = source.Name;
         destination.Brand = source.Brand;
+        destination.Barcode = source.Barcode;
     }
 
     // Mapeo para aplicar valores de UpdateProductDto sobre una entidad existente
@@ -31,5 +33,6 @@ public class SmartPantryApplicationMappers : MapperBase<Product, ProductDto>
         if (source == null || destination == null) return;
         destination.SetName(source.Name);
         destination.SetBrand(source.Brand);
+        destination.SetBarcode(source.Barcode);
     }
 }
