@@ -90,4 +90,33 @@ public class PantryItem_Tests
         warning.ExpirationDate.ShouldBe(newExpiration.Date);
         warning.Message.ShouldBe("Aviso reactivado");
     }
+
+    [Fact]
+    public void Should_Reactivate_Deactivated_Warning_When_Item_Returns_To_Threshold()
+    {
+        var warningId = Guid.NewGuid();
+        var itemId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        // Advertencia previamente desactivada
+        var warning = new ExpirationWarning(
+            warningId,
+            itemId,
+            WarningType.Expiration,
+            now.AddDays(15),
+            now.AddDays(-1),
+            "Aviso anterior desactivado",
+            isActive: false);
+
+        warning.IsActive.ShouldBeFalse();
+
+        // Reactivación al volver a estar dentro del umbral (vence en 2 días)
+        var newExpiration = now.AddDays(2);
+        warning.Reactivate(newExpiration, now, "Producto próximo a vencer (dentro del umbral)");
+
+        warning.IsActive.ShouldBeTrue();
+        warning.ExpirationDate.ShouldBe(newExpiration.Date);
+        warning.Message.ShouldNotBeNull();
+        warning.Message.ShouldContain("próximo a vencer");
+    }
 }
