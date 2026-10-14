@@ -15,6 +15,7 @@ using Volo.Abp.OpenIddict.EntityFrameworkCore;
 using Volo.Abp.TenantManagement;
 using Volo.Abp.TenantManagement.EntityFrameworkCore;
 using SmartPantry.Products; //Se agrega para que el DbContext pueda reconocer la entidad Product
+using SmartPantry.Pantry;
 
 namespace SmartPantry.EntityFrameworkCore;
 
@@ -52,6 +53,8 @@ public class SmartPantryDbContext :
     public DbSet<IdentityUserDelegation> UserDelegations { get; set; }
     public DbSet<IdentitySession> Sessions { get; set; }
     public DbSet<Product> Products { get; set; } //Se agrega el DbSet para la entidad Product, se agrega la tabla Products en la base de datos
+    public DbSet<PantryItem> PantryItems { get; set; }
+    public DbSet<ExpirationWarning> ExpirationWarnings { get; set; }
 
     // Tenant Management
     public DbSet<Tenant> Tenants { get; set; }
@@ -88,6 +91,34 @@ public class SmartPantryDbContext :
             b.Property(x => x.Name).IsRequired().HasMaxLength(ProductConsts.MaxNameLength);
             b.Property(x => x.Brand).IsRequired().HasMaxLength(ProductConsts.MaxBrandLength);
             b.Property(x => x.Barcode).IsRequired().HasMaxLength(ProductConsts.MaxBarcodeLength);
+        });
+
+        builder.Entity<PantryItem>(b =>
+        {
+            b.ToTable("AppPantryItems");
+            b.ConfigureByConvention();
+            b.Property(x => x.OwnerId).IsRequired();
+            b.Property(x => x.ProductId).IsRequired();
+            b.Property(x => x.Status).IsRequired();
+            b.Property(x => x.ExpirationDate).IsRequired(false);
+
+            b.HasIndex(x => x.OwnerId);
+            b.HasIndex(x => x.ProductId);
+        });
+
+        builder.Entity<ExpirationWarning>(b =>
+        {
+            b.ToTable("AppExpirationWarnings");
+            b.ConfigureByConvention();
+            b.Property(x => x.PantryItemId).IsRequired();
+            b.Property(x => x.WarningType).IsRequired();
+            b.Property(x => x.IsActive).IsRequired();
+            b.Property(x => x.ExpirationDate).IsRequired(false);
+            b.Property(x => x.LastEvaluatedAt).IsRequired();
+            b.Property(x => x.Message).HasMaxLength(ExpirationWarningConsts.MaxMessageLength);
+
+            // Requisito clave del TP: Índice único para evitar duplicados en la base de datos
+            b.HasIndex(x => new { x.PantryItemId, x.WarningType }).IsUnique();
         });
     }
 }
