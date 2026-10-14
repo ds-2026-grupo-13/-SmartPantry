@@ -198,6 +198,53 @@ public class ExpirationWarningManager_Tests : SmartPantry.EntityFrameworkCore.Sm
     }
 
     [Fact]
+    public async Task Should_Reactivate_Deactivated_Warning_When_Item_Returns_Within_Expiration_Threshold()
+    {
+        await ClearDataAsync();
+
+        // Arrange: Se parte de un ítem con una advertencia previa que se encuentra DESACTIVADA
+        var referenceDateUtc = new DateTime(2026, 10, 14, 0, 0, 0, DateTimeKind.Utc);
+        var ownerId = Guid.NewGuid();
+
+        // 1. Ítem con vencimiento lejano (15 días, fuera de umbral)
+        var item = await _pantryItemRepository.InsertAsync(
+            new PantryItem(Guid.NewGuid(), ownerId, Guid.NewGuid(), referenceDateUtc.AddDays(15), PantryItemStatus.Active));
+
+        // 2. Advertencia existente pero DESACTIVADA (IsActive = false)
+        var previousWarning = await _warningRepository.InsertAsync(
+            new ExpirationWarning(
+                Guid.NewGuid(),
+                item.Id,
+                WarningType.Expiration,
+                referenceDateUtc.AddDays(15),
+                referenceDateUtc.AddDays(-2),
+                "Advertencia antigua desactivada",
+                isActive: false));
+
+        previousWarning.IsActive.ShouldBeFalse();
+
+        // Act: El ítem modifica su fecha volviendo a estar dentro del umbral de vencimiento (vence en 2 días)
+        item.SetExpirationDate(referenceDateUtc.AddDays(2));
+        await _pantryItemRepository.UpdateAsync(item);
+
+        var result = await _warningManager.ProcessWarningsAsync(referenceDateUtc);
+
+        // Assert: Se comprueba que la advertencia desactivada vuelve a activarse
+        result.WarningsReactivated.ShouldBe(1);
+
+        var allWarnings = await _warningRepository.GetListAsync();
+        var warningForItem = allWarnings.Where(w => w.PantryItemId == item.Id).ToList();
+
+        // Comprobamos que no se duplicó: sigue habiendo exactamente una advertencia y es la misma instancia
+        warningForItem.Count.ShouldBe(1);
+        warningForItem[0].Id.ShouldBe(previousWarning.Id);
+        warningForItem[0].IsActive.ShouldBeTrue(); // Vuelve a activarse
+        warningForItem[0].ExpirationDate.ShouldBe(referenceDateUtc.AddDays(2));
+        warningForItem[0].Message.ShouldNotBeNull();
+        warningForItem[0].Message.ShouldContain("próximo a vencer");
+    }
+
+    [Fact]
     public async Task Should_Enforce_Unique_Index_At_Database_Level()
     {
         await ClearDataAsync();
