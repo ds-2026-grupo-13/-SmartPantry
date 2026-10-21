@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Volo.Abp.Application.Services;
 
 namespace SmartPantry.ExternalProducts;
@@ -7,6 +8,7 @@ namespace SmartPantry.ExternalProducts;
 /// Coordina la consulta por código de barras (RF-05) y traduce el resultado al contrato propio.
 /// Solo conoce la interfaz <see cref="IExternalProductCatalogClient"/>: nada de HttpClient, rutas ni JSON del proveedor.
 /// </summary>
+[Authorize]
 public class ExternalProductAppService : ApplicationService, IExternalProductAppService
 {
     private readonly IExternalProductCatalogClient _catalogClient;
