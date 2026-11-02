@@ -1,63 +1,179 @@
-﻿using System;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
+using SmartPantry.Pantry;
+using SmartPantry.Products;
+using Volo.Abp.Domain.Entities;
+using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Modularity;
 using Volo.Abp.OpenIddict.Applications;
 using Volo.Abp.PermissionManagement;
-using SmartPantry.Products;
-using Microsoft.Extensions.DependencyInjection;
-using Volo.Abp.Data;
-using System.Threading.Tasks;
 
 namespace SmartPantry;
 
 [DependsOn(
     typeof(SmartPantryApplicationModule),
-    typeof(SmartPantryDomainTestModule) // o el módulo base que ya tenías
+    typeof(SmartPantryDomainTestModule)
 )]
 public class SmartPantryApplicationTestModule : AbpModule
 {
     public override void ConfigureServices(ServiceConfigurationContext context)
     {
-        // Registramos un mock para satisfacer la dependencia que solicita PermissionManagement
         context.Services.AddSingleton(Substitute.For<IOpenIddictApplicationRepository>());
-        // Mock para el repositorio de definición de grupos de permisos requerido por PermissionManagement
         context.Services.AddSingleton(Substitute.For<IPermissionGroupDefinitionRecordRepository>());
-        // Mock para el repositorio de definiciones de permisos requerido por PermissionManagement
         context.Services.AddSingleton(Substitute.For<IPermissionDefinitionRecordRepository>());
-        // Mock para el repositorio de concesiones de permisos usado por PermissionDataSeeder
         context.Services.AddSingleton(Substitute.For<IPermissionGrantRepository>());
-        // Mock del repositorio de Product para permitir resolver ProductAppService desde DI en tests
-        var productRepo = Substitute.For<Volo.Abp.Domain.Repositories.IRepository<Product, Guid>>();
-        Product? saved = null;
-        productRepo.InsertAsync(Arg.Any<Product>(), Arg.Any<bool>())
+
+        // Repositorio en memoria para Product
+        var products = new ConcurrentDictionary<Guid, Product>();
+        var productRepo = Substitute.For<IRepository<Product, Guid>>();
+
+        productRepo.InsertAsync(Arg.Any<Product>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(ci =>
             {
-                saved = ci.ArgAt<Product>(0);
-                return Task.FromResult(saved!);
+                var p = ci.ArgAt<Product>(0);
+                products[p.Id] = p;
+                return Task.FromResult(p);
             });
-        productRepo.GetAsync(Arg.Any<Guid>()).Returns(ci =>
-        {
-            var id = ci.ArgAt<Guid>(0);
-            if (saved == null)
-            {
-                throw new Volo.Abp.Domain.Entities.EntityNotFoundException(typeof(Product), id);
-            }
-            return Task.FromResult(saved!);
-        });
-        productRepo.DeleteAsync(Arg.Any<Guid>())
+
+        productRepo.UpdateAsync(Arg.Any<Product>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(ci =>
             {
-                saved = null;
+                var p = ci.ArgAt<Product>(0);
+                products[p.Id] = p;
+                return Task.FromResult(p);
+            });
+
+        productRepo.GetAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var id = ci.ArgAt<Guid>(0);
+                if (!products.TryGetValue(id, out var p))
+                {
+                    throw new EntityNotFoundException(typeof(Product), id);
+                }
+                return Task.FromResult(p);
+            });
+
+        productRepo.FindAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var id = ci.ArgAt<Guid>(0);
+                products.TryGetValue(id, out var p);
+                return Task.FromResult(p);
+            });
+
+        productRepo.FindAsync(Arg.Any<Expression<Func<Product, bool>>>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var predicate = ci.ArgAt<Expression<Func<Product, bool>>>(0).Compile();
+                var match = products.Values.FirstOrDefault(predicate);
+                return Task.FromResult(match);
+            });
+
+        productRepo.GetListAsync(Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult(products.Values.ToList()));
+
+        productRepo.GetListAsync(Arg.Any<Expression<Func<Product, bool>>>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var predicate = ci.ArgAt<Expression<Func<Product, bool>>>(0).Compile();
+                return Task.FromResult(products.Values.Where(predicate).ToList());
+            });
+
+        productRepo.DeleteAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var id = ci.ArgAt<Guid>(0);
+                products.TryRemove(id, out _);
                 return Task.CompletedTask;
             });
-        // NOTA: no es necesario mockear GetListAsync/GetCountAsync aquí porque
-        // ProductAppService implementa su propio GetListAsync que usa el almacén en memoria.
-        context.Services.AddSingleton<Volo.Abp.Domain.Repositories.IRepository<Product, Guid>>(productRepo);
+
+        productRepo.DeleteAsync(Arg.Any<Product>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var p = ci.ArgAt<Product>(0);
+                products.TryRemove(p.Id, out _);
+                return Task.CompletedTask;
+            });
+
+        context.Services.AddSingleton<IRepository<Product, Guid>>(productRepo);
+
+        // Repositorio en memoria para PantryItem
+        var pantryItems = new ConcurrentDictionary<Guid, PantryItem>();
+        var pantryRepo = Substitute.For<IRepository<PantryItem, Guid>>();
+
+        pantryRepo.InsertAsync(Arg.Any<PantryItem>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var item = ci.ArgAt<PantryItem>(0);
+                pantryItems[item.Id] = item;
+                return Task.FromResult(item);
+            });
+
+        pantryRepo.UpdateAsync(Arg.Any<PantryItem>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var item = ci.ArgAt<PantryItem>(0);
+                pantryItems[item.Id] = item;
+                return Task.FromResult(item);
+            });
+
+        pantryRepo.GetAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var id = ci.ArgAt<Guid>(0);
+                if (!pantryItems.TryGetValue(id, out var item))
+                {
+                    throw new EntityNotFoundException(typeof(PantryItem), id);
+                }
+                return Task.FromResult(item);
+            });
+
+        pantryRepo.FindAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var id = ci.ArgAt<Guid>(0);
+                pantryItems.TryGetValue(id, out var item);
+                return Task.FromResult(item);
+            });
+
+        pantryRepo.GetListAsync(Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult(pantryItems.Values.ToList()));
+
+        pantryRepo.GetListAsync(Arg.Any<Expression<Func<PantryItem, bool>>>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var predicate = ci.ArgAt<Expression<Func<PantryItem, bool>>>(0).Compile();
+                return Task.FromResult(pantryItems.Values.Where(predicate).ToList());
+            });
+
+        pantryRepo.DeleteAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var id = ci.ArgAt<Guid>(0);
+                pantryItems.TryRemove(id, out _);
+                return Task.CompletedTask;
+            });
+
+        pantryRepo.DeleteAsync(Arg.Any<PantryItem>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var item = ci.ArgAt<PantryItem>(0);
+                pantryItems.TryRemove(item.Id, out _);
+                return Task.CompletedTask;
+            });
+
+        context.Services.AddSingleton<IRepository<PantryItem, Guid>>(pantryRepo);
+
         // Mocks para evitar dependencias de AuditLogging durante las pruebas
         context.Services.AddSingleton(Substitute.For<Volo.Abp.AuditLogging.IAuditLogRepository>());
         context.Services.AddSingleton(Substitute.For<Volo.Abp.AuditLogging.IAuditLogInfoToAuditLogConverter>());
-        // No se registra un IDataSeeder personalizado aquí para permitir que
-        // los seeders reales (creación de usuario 'admin', etc.) se ejecuten
-        // en los tests de integración con EF Core.
     }
 }
