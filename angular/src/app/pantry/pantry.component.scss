@@ -1,0 +1,31 @@
+.pantry-page {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.pantry-item-card {
+  transition: background-color 0.15s ease-in-out;
+  word-break: break-word;
+
+  &.pantry-item-consumed {
+    background-color: rgba(108, 117, 125, 0.08);
+    opacity: 0.88;
+  }
+}
+
+.pantry-edit-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.pantry-edit-dialog {
+  width: 100%;
+  max-width: 480px;
+}
+
