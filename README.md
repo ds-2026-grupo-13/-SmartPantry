@@ -19,7 +19,56 @@ Repositorio del Trabajo Práctico Integrador de Desarrollo de Software 2026.
 
 ## Cómo ejecutar
 
-Pendiente de TP 03.
+1. Aplicar migraciones y cargar semillas iniciales:
+   ```bash
+   cd src/SmartPantry.DbMigrator
+   dotnet run
+   ```
+2. Iniciar el BackEnd (`https://localhost:44333`):
+   ```bash
+   cd src/SmartPantry.HttpApi.Host
+   dotnet run
+   ```
+3. Instalar dependencias e iniciar el FrontEnd Angular (`http://localhost:4200`):
+   ```bash
+   cd angular
+   yarn install
+   yarn start
+   ```
+
+---
+
+## TP 10 — Decisiones de Diseño e Implementación ("Mi despensa")
+
+### 1. Aislamiento por usuario y código de respuesta ante ítems ajenos (`404 Not Found`)
+Todas las operaciones de `PantryAppService` requieren autenticación (`[Authorize]`) y obtienen el propietario desde la sesión activa mediante `ICurrentUser.GetId()`.
+Antes de leer (`GetAsync`), modificar (`UpdateAsync`), marcar como consumido (`MarkAsConsumedAsync`) o eliminar (`DeleteAsync`) un ítem de despensa, el servidor verifica `item != null && item.OwnerId == currentUserId`. Si el ítem no existe o pertenece a otro usuario, se lanza `EntityNotFoundException(typeof(PantryItem), id)`, respondiendo **HTTP 404 Not Found** en todas las operaciones para no revelar la existencia de identificadores de recursos ajenos.
+
+### 2. Gestión de ítems consumidos (Regla de Negocio 6)
+Al marcar un ítem como consumido (`PantryItemStatus.Consumed`), **no se elimina automáticamente**. El equipo decidió conservar los ítems consumidos como **historial visible de forma diferenciada** en la lista (con insignia `Consumido` / `Consumed`), incorporando un selector de filtro por estado (*Todos los ítems*, *Solo activos*, *Historial de consumidos*) y permitiendo su **eliminación explícita** mediante el botón *Eliminar* con confirmación previa.
+
+### 3. Uso de `ListService` y paginación
+La operación de listado `PantryAppService.GetListAsync(GetPantryItemsInput)` es paginada (`PagedResultDto<PantryItemDto>`). Por ello, `PantryComponent` inyecta y provee `ListService` de `@abp/ng.core`, vinculando la consulta mediante `list.hookToQuery(...)` y refrescando los datos tras cada operación con `list.get()`.
+
+### 4. Criterio de fechas (`UTC`) y alineación con el Worker del TP 08
+Tanto la entidad `PantryItem.SetExpirationDate` como el `ExpirationWarningManager` del worker periódico (TP 08) normalizan las fechas de vencimiento a **`DateTimeKind.Utc` sin componente horario (`00:00:00Z`)**. En la interfaz Angular (`PantryComponent`), las fechas se formatean con el `DatePipe` regional de la aplicación especificando explícitamente la zona `'UTC'` (`item.expirationDate | date:'mediumDate':'UTC'`), garantizando coincidencia exacta con el criterio del worker sin desfases por huso horario local.
+
+### 5. Manejo de errores HTTP y uso de `skipHandleError`
+En las llamadas del proxy `PantryService` desde `PantryComponent` se utiliza `{ skipHandleError: true }` por el siguiente motivo documentado:
+- **En `getList`:** permite que el componente capture la falla y renderice su propio **estado de error en línea** con mensaje comprensible localizado (`::Pantry:Error`) y el botón **Reintentar** (`::Pantry:Retry`), evitando abrir un modal genérico superpuesto de ABP.
+- **En `update`:** permite mostrar el mensaje localizado (`::Pantry:UpdateError`) dentro del propio formulario reactivo de edición sin cerrarlo ni perder los datos ingresados por el usuario.
+- En ningún caso se exponen detalles técnicos ni códigos de estado crudos como único mensaje al usuario.
+
+### 6. Correspondencia RF-10 / RF-11, BackEnd y Proxy Angular
+
+| Requerimiento | Método `PantryAppService` | Endpoint HTTP | Método `PantryService` (`@proxy/pantry`) | Uso en `PantryComponent` |
+| :--- | :--- | :--- | :--- | :--- |
+| **RF-10** Agregar a despensa | `CreateAsync(CreatePantryItemDto)` | `POST /api/app/pantry` | `create(input, config)` | Contrato disponible en proxy |
+| **RF-11** Listar propios (paginado) | `GetListAsync(GetPantryItemsInput)` | `GET /api/app/pantry` | `getList(input, config)` | `ngOnInit` (`list.hookToQuery`) / `retry()` |
+| **RF-11** Consultar ítem propio | `GetAsync(Guid id)` | `GET /api/app/pantry/{id}` | `get(id, config)` | Contrato disponible en proxy |
+| **RF-11** Editar cantidad, unidad y fecha | `UpdateAsync(Guid id, UpdatePantryItemDto)` | `PUT /api/app/pantry/{id}` | `update(id, input, config)` | `saveEdit()` (Formulario reactivo) |
+| **RF-11** Marcar como consumido | `MarkAsConsumedAsync(Guid id)` | `POST /api/app/pantry/{id}/mark-as-consumed` | `markAsConsumed(id, config)` | `markAsConsumed(item)` |
+| **RF-11** Eliminar ítem propio | `DeleteAsync(Guid id)` | `DELETE /api/app/pantry/{id}` | `delete(id, config)` | `deleteItem(item)` (previa confirmación) |
 
 # ----------------------------------------
 # Reglas generadas por ABP Studio

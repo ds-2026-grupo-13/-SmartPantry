@@ -13,12 +13,14 @@ public class PantryItem_Tests
         var productId = Guid.NewGuid();
         var expirationDate = new DateTime(2026, 10, 20, 0, 0, 0, DateTimeKind.Utc);
 
-        var item = new PantryItem(Guid.NewGuid(), ownerId, productId, expirationDate, PantryItemStatus.Active);
+        var item = new PantryItem(Guid.NewGuid(), ownerId, productId, expirationDate, PantryItemStatus.Active, 2.5m, "kg");
 
         item.OwnerId.ShouldBe(ownerId);
         item.ProductId.ShouldBe(productId);
         item.Status.ShouldBe(PantryItemStatus.Active);
         item.ExpirationDate.ShouldBe(expirationDate);
+        item.Quantity.ShouldBe(2.5m);
+        item.Unit.ShouldBe("kg");
     }
 
     [Fact]
@@ -36,6 +38,35 @@ public class PantryItem_Tests
         Assert.Throws<ArgumentException>(() =>
         {
             new PantryItem(Guid.NewGuid(), Guid.NewGuid(), Guid.Empty);
+        });
+    }
+
+    [Fact]
+    public void Should_Throw_When_Quantity_Is_Negative()
+    {
+        var item = new PantryItem(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            item.SetQuantity(-1m);
+        });
+    }
+
+    [Fact]
+    public void Should_Normalize_Unit_And_Reject_Excessive_Length()
+    {
+        var item = new PantryItem(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+
+        item.SetUnit("  litros  ");
+        item.Unit.ShouldBe("litros");
+
+        item.SetUnit("   ");
+        item.Unit.ShouldBeNull();
+
+        var tooLongUnit = new string('u', PantryItemConsts.MaxUnitLength + 1);
+        Assert.Throws<ArgumentException>(() =>
+        {
+            item.SetUnit(tooLongUnit);
         });
     }
 

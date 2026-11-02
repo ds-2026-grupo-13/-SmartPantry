@@ -13,7 +13,10 @@
     "target": "ES2022",
     "module": "ES2022",
     "lib": ["ES2022", "dom", "esnext.disposable"],
-    "paths": {},
+    "paths": {
+      "@proxy": ["./src/app/proxy/index.ts"],
+      "@proxy/*": ["./src/app/proxy/*"]
+    },
     "useDefineForClassFields": false
   },
   "angularCompilerOptions": {
